@@ -5,31 +5,14 @@ Trae CN 每日对话自动保存 + AI 日报生成工具
 基于 trae-db-decrypt 项目的数据库解密方案，自动导出当日对话记录为 Markdown 文件
 并通过 AI 模型生成每日工作报告
 
+即插即用：所有路径均相对于脚本所在目录，无需手动配置
+
 依赖:  pip install pycryptodome requests
 
-用法:
-  # 首次使用需要扫描内存提取密钥（需要 Trae 正在运行）
-  python trae_daily_saver.py --scan-key
-
-  # 使用已有密钥自动解密并导出今日对话（含 AI 日报）
-  python trae_daily_saver.py --api-key sk-xxxx --model gpt-4o-mini
-
-  # 使用环境变量配置 API
-  set OPENAI_API_KEY=sk-xxxx
-  set OPENAI_API_BASE=https://api.openai.com/v1
-  python trae_daily_saver.py
-
-  # 仅导出对话记录，不生成日报
-  python trae_daily_saver.py --no-summary
-
-  # 指定密钥文件路径
-  python trae_daily_saver.py --key-file decrypted_key.json
-
-  # 指定输出目录
-  python trae_daily_saver.py --output-dir ./trae_logs
-
-  # 导出指定日期的对话
-  python trae_daily_saver.py --date 2026-05-19
+快速开始:
+  1. 复制 .env.example 为 .env，填入 API Key
+  2. 首次使用扫描密钥: python trae_daily_saver.py --scan-key
+  3. 生成今日日报:     python trae_daily_saver.py
 
 @author Zhenyu Cai
 @created 2026-05-20
@@ -53,6 +36,45 @@ from pathlib import Path
 import requests
 from Crypto.Cipher import AES
 
+# ==================== 脚本根目录 ====================
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def load_env_file():
+    """
+    加载 .env 配置文件到环境变量（零依赖，纯 Python 实现）
+
+    查找顺序:
+    1. 脚本同目录下的 .env
+    2. 当前工作目录下的 .env
+
+    @author Zhenyu Cai
+    @created 2026-05-26
+    """
+    env_paths = [
+        os.path.join(SCRIPT_DIR, '.env'),
+        os.path.join(os.getcwd(), '.env'),
+    ]
+    for env_path in env_paths:
+        if not os.path.isfile(env_path):
+            continue
+        with open(env_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, _, value = line.partition('=')
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and value and key not in os.environ:
+                    os.environ[key] = value
+        break
+
+
+load_env_file()
+
+# ==================== 常量配置 ====================
+
 PAGE_SZ = 4096
 KEY_SZ = 32
 SALT_SZ = 16
@@ -64,16 +86,22 @@ SQLITE_HDR = b'SQLite format 3\x00'
 MEM_COMMIT = 0x1000
 READABLE = {0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80}
 
-DEFAULT_KEY_FILE = "decrypted_key.json"
-DEFAULT_DECRYPTED_DB = "database_decrypted.db"
-DEFAULT_OUTPUT_DIR = "./trae_dialogues"
+DEFAULT_KEY_FILE = os.path.join(SCRIPT_DIR, "decrypted_key.json")
+DEFAULT_DECRYPTED_DB = os.path.join(SCRIPT_DIR, "database_decrypted.db")
+DEFAULT_OUTPUT_DIR = os.path.join(SCRIPT_DIR, "trae_dialogues")
 DEFAULT_DAILY_REPORT_FILE = "daily_report.md"
 
-# AI 模型配置（用于生成日报总结）
-DEFAULT_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.deepseek.com/v1")
-DEFAULT_API_KEY = os.environ.get("OPENAI_API_KEY", "sk-f0fd07088177425180ed7b0b0ab23737")
-DEFAULT_MODEL = os.environ.get("REPORT_MODEL", "deepseek-chat")
-DEFAULT_SYSTEM_PROMPT = os.environ.get("REPORT_SYSTEM_PROMPT",
+# AI 模型配置（优先从 .env 读取，其次从环境变量，最后使用默认值）
+DEFAULT_API_BASE = os.environ.get(
+    "DEEPSEEK_API_BASE",
+    os.environ.get("OPENAI_API_BASE", "https://api.deepseek.com/v1")
+)
+DEFAULT_API_KEY = os.environ.get("DEEPSEEK_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
+DEFAULT_MODEL = os.environ.get(
+    "DEEPSEEK_MODEL",
+    os.environ.get("REPORT_MODEL", "deepseek-chat")
+)
+DEFAULT_SYSTEM_PROMPT = os.environ.get("REPORT_PROMPT",
     "依据对话内容总结今日工作日报，字数保持在 200 字上下。"
     "重点提炼今日技术优化、功能调试、方案研讨等相关工作内容，"
     "清晰说明各项任务的推进状态与工作成果。"

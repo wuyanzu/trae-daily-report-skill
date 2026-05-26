@@ -4,3 +4,5 @@ __pycache__/
 decrypted_key.json
 trae_dialogues/
 *.log
+.env
+daily_report.md

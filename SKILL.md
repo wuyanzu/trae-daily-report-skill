@@ -16,17 +16,17 @@ Invoke immediately when user types `/日报`, asks for "日报", "生成日报",
 ### Step 1: Run the daily report script
 
 ```bash
-cd d:\下载\python_scripts && python trae_daily_saver.py --no-summary
+python trae_daily_saver.py --no-summary
 ```
 
-Wait for the script to complete. It will:
+Run from the skill directory. The script will:
 - Decrypt the Trae CN database
 - Extract today's conversations
-- Save raw dialogue markdown to `d:\下载\python_scripts\trae_dialogues\trae_dialogues_YYYYMMDD.md`
+- Save raw dialogue markdown to `trae_dialogues/` (relative to script)
 
 If the script fails because no key file exists, ask the user to first run:
 ```bash
-cd d:\下载\python_scripts && python trae_daily_saver.py --scan-key
+python trae_daily_saver.py --scan-key
 ```
 (This requires Trae CN to be running)
 
@@ -45,7 +45,7 @@ Requirements for the report:
 
 ### Step 3: Return report to user
 
-Display the generated daily report in the conversation. Also save it to `d:\下载\daily_report_YYYYMMDD.md`.
+Display the generated daily report in the conversation. Also save it to `daily_report.md` (script directory).
 
 Format:
 ```markdown
