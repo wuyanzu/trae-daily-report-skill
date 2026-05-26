@@ -1,0 +1,6 @@
+*.pyc
+__pycache__/
+*.db
+decrypted_key.json
+trae_dialogues/
+*.log
